@@ -5,10 +5,10 @@ import { doc, getDoc } from 'firebase/firestore';
 import Login from './Login';
 import Home from './Home';
 import Chat from './Chat';
-import Admin from './Admin';
+import AdminMatch from './AdminMatch'; // Changed from Admin to AdminMatch
 
-// 🔴 SET YOUR EXACT GOOGLE EMAIL HERE 🔴
-const ADMIN_EMAIL = "nihar@example.com";
+// 🔴 MUST MATCH THE EMAIL IN ADMINMATCH.JSX 🔴
+const ADMIN_EMAIL = "navyamj111@gmail.com";
 
 function App() {
   const [user, setUser] = useState(null);
@@ -18,7 +18,7 @@ function App() {
   const [currentView, setCurrentView] = useState('');
   const [activeChatId, setActiveChatId] = useState(null);
 
-  // 1. NAVIGATION HELPER (Enables the Back Button)
+  // 1. NAVIGATION HELPER
   const navigateTo = (view, chatId = null) => {
     setCurrentView(view);
     setActiveChatId(chatId);
@@ -32,7 +32,6 @@ function App() {
         setCurrentView(event.state.view);
         setActiveChatId(event.state.chatId);
       } else if (user) {
-        // Fallback if history is lost: Route by email again
         setCurrentView(user.email === ADMIN_EMAIL ? 'admin' : 'home');
         setActiveChatId(null);
       }
@@ -54,8 +53,7 @@ function App() {
           setProfile({ username: "Guest", streak: 0, email: currentUser.email });
         }
 
-        // 🌟 THE MAGIC ROUTING RULE 🌟
-        // If it's the Admin, go to 'admin'. Otherwise, go to 'home'.
+        // 🌟 ROUTING LOGIC 🌟
         const initialView = currentUser.email === ADMIN_EMAIL ? 'admin' : 'home';
         setCurrentView(initialView);
         window.history.replaceState({ view: initialView, chatId: null }, "");
@@ -73,20 +71,44 @@ function App() {
   if (!user) return <Login />;
 
   // 4. VIEW RENDERER
+
+  // A. If view is 'admin', show the matching component
+  // Note: We wrap it in a div so you can still have a "Back" button if you want
   if (currentView === 'admin') {
-    return <Admin onBack={() => navigateTo('home')} />;
+    return (
+      <div className="admin-page-container">
+        <AdminMatch />
+        {/* Optional: Add a logout or back button here since AdminMatch is just a button */}
+        <div style={{ textAlign: 'center', marginTop: '100px' }}>
+          <h1 style={{ color: 'white' }}>Admin Control Center</h1>
+          <p style={{ color: '#64748b' }}>The sync button is in the bottom right corner.</p>
+          <button
+            onClick={() => auth.signOut()}
+            style={{ color: '#ef4444', background: 'none', border: 'none', cursor: 'pointer', textDecoration: 'underline' }}
+          >
+            Logout
+          </button>
+        </div>
+      </div>
+    );
+  }
+  if (user && user.email === ADMIN_EMAIL) {
+    return <AdminMatch />;
   }
 
+  // B. If view is 'chat'
   if (currentView === 'chat' && activeChatId) {
-    return <Chat user={user} roomId={activeChatId} onLeave={() => navigateTo('home')} />;
+    return <Chat user={user} pactId={activeChatId} onLeaveChat={() => navigateTo('home')} />;
   }
 
+
+  // C. Default: Home
   return (
     <Home
       userProfile={profile}
-      onEnterChat={(roomId) => navigateTo('chat', roomId)}
+      onEnterChat={(pactId) => navigateTo('chat', pactId)}
       onOpenAdmin={() => navigateTo('admin')}
-      isAdmin={user.email === ADMIN_EMAIL} // Tells Home if we should show the Admin button
+      isAdmin={user.email === ADMIN_EMAIL}
     />
   );
 }

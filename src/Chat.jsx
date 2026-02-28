@@ -1,102 +1,181 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { db } from './firebase';
-import { collection, addDoc, query, orderBy, onSnapshot, serverTimestamp } from 'firebase/firestore';
+import { auth, db } from './firebase';
+import { doc, onSnapshot, getDoc, collection, query, orderBy, addDoc, serverTimestamp, updateDoc, increment, arrayUnion, deleteDoc } from 'firebase/firestore';
+import confetti from 'canvas-confetti';
+import './Chat.css';
 
-export default function Chat({ user, roomId, onLeave }) {
+export default function Chat({ pactId, onLeaveChat }) {
+  const [pactData, setPactData] = useState(null);
   const [messages, setMessages] = useState([]);
   const [newMessage, setNewMessage] = useState("");
-  const scrollRef = useRef();
+  const messagesEndRef = useRef(null);
+  const currentUser = auth.currentUser;
 
-  // 1. Listen for new messages in real-time
   useEffect(() => {
-    const q = query(collection(db, `chats/${roomId}/messages`), orderBy("createdAt", "asc"));
-    
-    const unsubscribe = onSnapshot(q, (snapshot) => {
-      const msgs = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      }));
-      setMessages(msgs);
+    if (!pactId) return;
+    const unsub = onSnapshot(doc(db, "pacts", pactId), (docSnap) => {
+      if (docSnap.exists()) {
+        const data = docSnap.data();
+        setPactData(data);
+        if (data.finishedUsers?.length === data.members?.length) {
+          confetti({ particleCount: 150, spread: 70, origin: { y: 0.6 } });
+        }
+      } else { onLeaveChat(); }
     });
+    return () => unsub();
+  }, [pactId]);
 
-    return () => unsubscribe(); // Cleanup when leaving the room
-  }, [roomId]);
-
-  // Auto-scroll to bottom when a new message arrives
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollIntoView({ behavior: "smooth" });
-    }
-  }, [messages]);
-
-  // 2. Send a message
-  const sendMessage = async (e) => {
-    e.preventDefault();
-    if (!newMessage.trim()) return;
-
-    await addDoc(collection(db, `chats/${roomId}/messages`), {
-      text: newMessage,
-      uid: user.uid,
-      username: user.displayName?.split(' ')[0] || "Member",
-      avatar: user.photoURL || "https://api.dicebear.com/7.x/avataaars/svg?seed=fallback",
-      createdAt: serverTimestamp()
+    if (!pactId) return;
+    const q = query(collection(db, `pacts/${pactId}/messages`), orderBy("timestamp", "asc"));
+    const unsub = onSnapshot(q, (snapshot) => {
+      setMessages(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+      setTimeout(() => messagesEndRef.current?.scrollIntoView({ behavior: "smooth" }), 100);
     });
+    return () => unsub();
+  }, [pactId]);
 
-    setNewMessage(""); // Clear input box
+  const handleSendMessage = async (e, customText = null) => {
+    if (e) e.preventDefault();
+    const textToSend = customText || newMessage;
+    if (!textToSend.trim()) return;
+
+    await addDoc(collection(db, `pacts/${pactId}/messages`), {
+      text: textToSend,
+      senderId: currentUser.uid,
+      senderName: currentUser.email.split('@')[0],
+      timestamp: serverTimestamp()
+    });
+    setNewMessage("");
   };
 
+  const markFinished = async () => {
+    await updateDoc(doc(db, "pacts", pactId), {
+      finishedUsers: arrayUnion(currentUser.uid)
+    });
+    handleSendMessage(null, " I have officially finished my goal for today!");
+  };
+
+  const endChallenge = async () => {
+    try {
+      // 1. Check if we have member data
+      if (!pactData || !pactData.members) return;
+
+      // 2. Loop through all members to update their streaks and reset status
+      // We use a Promise.all to make sure all updates finish before we delete the pact
+      await Promise.all(pactData.members.map(async (member) => {
+        const userRef = doc(db, "users", member.uid);
+        return updateDoc(userRef, {
+          currentPactId: null,      // This triggers the redirect to Home
+          streak: increment(1)      // This safely adds 1 to the streak
+        });
+      }));
+
+      // 3. Delete the pact document from the database
+      await deleteDoc(doc(db, "pacts", pactId));
+
+      // 4. Move the user back to the Home view
+      onLeaveChat();
+
+      console.log("Streak updated and Pact closed!");
+    } catch (error) {
+      console.error("Error ending challenge:", error);
+      alert("Error: " + error.message);
+    }
+  };
+
+  if (!pactData) return <div className="chat-page-wrapper" style={{ justifyContent: 'center', alignItems: 'center' }}>Syncing Workspace...</div>;
+
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100vh', maxWidth: '600px', margin: '0 auto', background: '#0f172a' }}>
-      
-      {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '20px', background: '#1e293b', borderBottom: '1px solid #334155' }}>
-        <div>
-          <h2 style={{ margin: 0, fontSize: '20px', color: 'white' }}>Pact Room</h2>
-          <span style={{ fontSize: '12px', color: '#22c55e' }}>● Live</span>
+    <div className="chat-page-wrapper">
+
+      {/* SIDEBAR */}
+      <aside className="chat-sidebar">
+        <div className="sidebar-header">
+          <h2>Pact Workspace</h2>
+          <div className="sidebar-category">{pactData.category} Group</div>
         </div>
-        <button onClick={onLeave} style={{ background: 'transparent', color: '#ef4444', border: '1px solid #ef4444', padding: '8px 16px', borderRadius: '8px', cursor: 'pointer' }}>
-          Leave Pact
-        </button>
-      </div>
 
-      {/* Chat Messages Area */}
-      <div style={{ flex: 1, overflowY: 'auto', padding: '20px', display: 'flex', flexDirection: 'column', gap: '15px' }}>
-        {messages.map((msg) => {
-          const isMe = msg.uid === user.uid;
-          return (
-            <div key={msg.id} style={{ display: 'flex', flexDirection: isMe ? 'row-reverse' : 'row', alignItems: 'flex-end', gap: '10px' }}>
-              <img src={msg.avatar} alt="avatar" style={{ width: '35px', height: '35px', borderRadius: '50%', background: '#334155' }} />
-              <div style={{ 
-                background: isMe ? '#2563eb' : '#1e293b', 
-                color: 'white', padding: '12px 16px', 
-                borderRadius: '16px', 
-                borderBottomRightRadius: isMe ? '4px' : '16px',
-                borderBottomLeftRadius: !isMe ? '4px' : '16px',
-                maxWidth: '70%'
-              }}>
-                {!isMe && <div style={{ fontSize: '11px', color: '#94a3b8', marginBottom: '4px' }}>{msg.username}</div>}
-                <div style={{ fontSize: '15px', lineHeight: '1.4' }}>{msg.text}</div>
+        <div className="sidebar-content">
+          <p className="action-label">TEAM MEMBERS</p>
+          {pactData.members.map((m, idx) => (
+            <div key={idx} className="member-card" style={{ display: 'flex', gap: '10px', marginBottom: '15px' }}>
+              <img src={m.avatar || `https://api.dicebear.com/7.x/avataaars/svg?seed=${m.username}`} style={{ width: '32px', height: '32px', borderRadius: '6px' }} alt="" />
+              <div style={{ flex: 1 }}>
+                <p style={{ fontSize: '0.85rem', fontWeight: '700', margin: 0 }}>{m.username}</p>
+                <p style={{ fontSize: '0.7rem', color: '#64748b', margin: 0 }}>{m.goal}</p>
               </div>
+              {pactData.finishedUsers?.includes(m.uid) && <span style={{ color: '#10b981' }}>✓</span>}
             </div>
-          );
-        })}
-        <div ref={scrollRef}></div> {/* Invisible div to scroll to */}
+          ))}
+
+          <div className="action-section">
+            <p className="action-label">QUICK ACTIONS</p>
+            <button className="action-button" onClick={() => handleSendMessage(null, " I'm making progress on my goal right now!")}> Share Progress</button>
+            <button className="action-button" onClick={() => handleSendMessage(null, " Hey team, a friendly reminder to stay on track!")}> Send Reminder</button>
+          </div>
+        </div>
+
+        <button onClick={onLeaveChat} style={{ padding: '20px', background: '#0b0e14', border: 'none', color: '#64748b', cursor: 'pointer', borderTop: '1px solid #1e293b' }}>← Exit Session</button>
+      </aside>
+
+      {/* CHAT WINDOW */}
+      <div className="chat-window">
+        {/* NAV AT TOP */}
+        <nav className="chat-nav">
+          <h1 style={{ fontSize: '1rem', fontWeight: '800' }}># {pactData.category}-discussion</h1>
+          {!pactData.finishedUsers?.includes(currentUser.uid) && (
+            <button onClick={markFinished} style={{ padding: '8px 16px', background: '#10b981', color: 'white', borderRadius: '6px', border: 'none', fontWeight: '800', cursor: 'pointer', fontSize: '0.8rem' }}>COMPLETE GOAL</button>
+          )}
+        </nav>
+
+        {/* MESSAGES IN MIDDLE */}
+        <div className="message-container">
+          {messages.map((msg) => {
+            const isMe = msg.senderId === currentUser.uid;
+            return (
+              <div key={msg.id} className={`msg-row ${isMe ? 'is-me' : ''}`}>
+                {!isMe && <img src={`https://api.dicebear.com/7.x/avataaars/svg?seed=${msg.senderName}`} style={{ width: '36px', height: '36px', borderRadius: '8px' }} alt="" />}
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  {!isMe && <span className="sender-name-label" style={{ fontSize: '12px', color: '#818cf8', fontWeight: 'bold' }}>{msg.senderName}</span>}
+                  <div className="msg-bubble">
+                    <p style={{ margin: 0 }}>{msg.text}</p>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+          <div ref={messagesEndRef} />
+        </div>
+
+        {/* BIG TEXTAREA AT THE BOTTOM */}
+        <footer className="chat-input-area">
+          {pactData.finishedUsers?.length === pactData.members?.length ? (
+            <div style={{ background: '#4f46e5', padding: '20px', borderRadius: '12px', textAlign: 'center' }}>
+              <p style={{ fontWeight: '800', color: 'white', margin: 0 }}> ALL GOALS MET. PACT COMPLETE.</p>
+              <button onClick={endChallenge} style={{ marginTop: '10px', padding: '8px 20px', borderRadius: '6px', border: 'none', fontWeight: '800', cursor: 'pointer', background: '#fff', color: '#4f46e5' }}>CLOSE CHAT</button>
+            </div>
+          ) : (
+            <form onSubmit={handleSendMessage} className="input-box-container">
+              <textarea
+                className="chat-text-input"
+                placeholder={`Type a message to the group...`}
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === 'Enter' && !e.shiftKey) {
+                    e.preventDefault();
+                    handleSendMessage(e);
+                  }
+                }}
+              />
+              <div className="input-footer-actions">
+                <button type="submit" className="send-btn-small">SEND MESSAGE</button>
+              </div>
+            </form>
+          )}
+        </footer>
       </div>
-
-      {/* Input Area */}
-      <form onSubmit={sendMessage} style={{ padding: '20px', background: '#1e293b', borderTop: '1px solid #334155', display: 'flex', gap: '10px' }}>
-        <input 
-          type="text" 
-          value={newMessage}
-          onChange={(e) => setNewMessage(e.target.value)}
-          placeholder="Type your progress..." 
-          style={{ flex: 1, padding: '15px', borderRadius: '12px', border: 'none', background: '#0f172a', color: 'white', outline: 'none' }}
-        />
-        <button type="submit" style={{ padding: '0 25px', background: '#2563eb', color: 'white', border: 'none', borderRadius: '12px', fontWeight: 'bold', cursor: 'pointer' }}>
-          Send
-        </button>
-      </form>
-
     </div>
   );
 }
