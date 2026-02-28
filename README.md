@@ -13,7 +13,7 @@
 - Member 2: Niharika S - College of Engineering, Trivandrum
 
 ### Hosted Project Link
-[mention your project hosted link here]
+[[https://tink-her-hack-pact-git-main-nhrknims-projects.vercel.app/]]
 
 ### Project Description
 PACT is a social accountability platform designed to help people stick to their daily habits. Users choose a goal, enter a "Waiting Room" and are automatically paired with 1-2 strangers with similar objectives to form a 24-hour "Pact" supported by real-time chat.
@@ -54,18 +54,22 @@ Completion Celebration: Interactive confetti triggers once all members of a Pact
 ### For Software:
 
 #### Installation
+
+```
 # Clone the repository
-git clone https://github.com/your-username/pact-app.git
+git clone https://github.com/Nhrknim/tink-her-hack-pact.git
 cd pact-app
 
 # This command automatically installs Vite, Firebase, Tailwind, 
 # and all other necessary libraries listed in package.json
-npm install
 
+npm install
+```
 #### Run
+```
 # Start the Vite development server
 npm run dev
-
+```
 ## Project Documentation
 
 ### For Software:
@@ -135,7 +139,7 @@ npm run dev
 - Architecture design and planning
 - Custom business logic implementation
 - Integration and testing
-- UI/UX design decisions
+
 
 ---
 
