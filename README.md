@@ -13,7 +13,7 @@
 - Member 2: Niharika S - College of Engineering, Trivandrum
 
 ### Hosted Project Link
-[[https://tink-her-hack-pact-git-main-nhrknims-projects.vercel.app/]]
+https://tink-her-hack-pact-git-main-nhrknims-projects.vercel.app/
 
 ### Project Description
 PACT is a social accountability platform designed to help people stick to their daily habits. Users choose a goal, enter a "Waiting Room" and are automatically paired with 1-2 strangers with similar objectives to form a 24-hour "Pact" supported by real-time chat.
@@ -76,14 +76,25 @@ npm run dev
 
 #### Screenshots (Add at least 3)
 
-![Screenshot1](Add screenshot 1 here with proper name)
-*Add caption explaining what this shows*
 
-![Screenshot2](Add screenshot 2 here with proper name)
-*Add caption explaining what this shows*
+<img width="1719" height="905" alt="image" src="https://github.com/user-attachments/assets/6296426d-380e-4513-b5ed-bd6a3eb4df8b" />
+*Login page*
 
-![Screenshot3](Add screenshot 3 here with proper name)
-*Add caption explaining what this shows*
+<img width="1718" height="908" alt="image" src="https://github.com/user-attachments/assets/0e48928a-cb03-496b-b29d-d2eb19a26882" />
+*Home page displaying streak,countdown till next matching, sample goals*
+
+<img width="1727" height="908" alt="image" src="https://github.com/user-attachments/assets/a02abda7-b604-4fad-88aa-0a1db4f2fb0d" />
+*Users added to a pool according to their interests, waiting to be matched.*
+
+<img width="1720" height="907" alt="image" src="https://github.com/user-attachments/assets/c41ca688-a3ae-4d71-9650-3eeb365d1a1c" /> 
+*Match found.Users can enter the chat*
+
+<img width="1710" height="909" alt="image" src="https://github.com/user-attachments/assets/8abb249f-584a-41ce-9b79-b153749a6bd8" />
+*Chat interface*
+
+<img width="1718" height="912" alt="image" src="https://github.com/user-attachments/assets/db2bf806-1bbb-472e-9b07-ca9e42dd8f7d" />
+*Goals met and pact completed. Users can return to home screen after this*
+
 
 #### Diagrams
 
