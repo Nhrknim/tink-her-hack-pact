@@ -4,7 +4,7 @@ import { getFirestore } from "firebase/firestore";
 
 // Your web app's Firebase configuration
 const firebaseConfig = {
-  apiKey: "AIzaSyBSy1GCAFjKOolm_8gUxz147Xq6tb2siac",
+  apiKey: "",
   authDomain: "pact-app-a540a.firebaseapp.com",
   projectId: "pact-app-a540a",
   storageBucket: "pact-app-a540a.firebasestorage.app",
